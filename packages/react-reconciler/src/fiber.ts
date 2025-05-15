@@ -1,13 +1,15 @@
-import { Key, Props } from 'shared/ReactTypes';
-import { WorkTag } from './workTags';
+import { Key, Props, ReactElementType, Ref } from 'shared/ReactTypes';
+import { FunctionComponent, HostComponent, WorkTag } from './workTags';
 import { Flags, NoFlags } from './fiberFlags';
+import { Container } from 'hostConfig';
+import { UpdateQueue } from './updateQueue';
 
 export class FiberNode {
-  tag: WorkTag;
+  tag: WorkTag; // Root Component Text
   key: Key;
-  type: any;
-  ref: Ref | null;
-  stateNode: any;
+  type: unknown; // div span
+  ref: Ref;
+  stateNode: unknown;
 
   return: FiberNode | null;
   sibling: FiberNode | null;
@@ -15,8 +17,9 @@ export class FiberNode {
   index: number;
 
   pendingProps: Props;
-  memoizedProps: Props | null;
-  memoizedState: any;
+  memoizedProps: Props;
+  memoizedState: unknown;
+  updateQueue: UpdateQueue<unknown> | null;
 
   alternate: FiberNode | null;
   flags: Flags;
@@ -27,7 +30,6 @@ export class FiberNode {
     this.key = key;
     this.type = null;
     this.ref = null;
-
     // 真实Dom节点
     this.stateNode = null;
 
@@ -37,15 +39,61 @@ export class FiberNode {
     this.child = null;
     this.index = 0;
 
-    //
     this.pendingProps = pendingProps;
     this.memoizedProps = null;
     this.memoizedState = null;
+    this.updateQueue = null;
 
     this.alternate = null;
-
-    // 比较状态
     this.flags = NoFlags;
     this.subtreeFlags = NoFlags;
   }
+}
+
+export class FiberRootNode {
+  container: Container;
+  current: FiberNode;
+  finishedWork: FiberNode | null; // 更新完后
+  constructor(container: Container, hostRootFiber: FiberNode) {
+    this.container = container;
+    this.current = hostRootFiber;
+    hostRootFiber.stateNode = this;
+    this.finishedWork = null;
+  }
+}
+
+export const createWip = (
+  current: FiberNode,
+  pendingProps: Props
+): FiberNode => {
+  let wip = current.alternate;
+  if (wip === null) {
+    wip = new FiberNode(current.tag, pendingProps, current.key);
+    wip.stateNode = current.stateNode;
+    wip.alternate = current;
+    current.alternate = wip;
+  } else {
+    wip.pendingProps = pendingProps;
+    wip.flags = NoFlags;
+    wip.subtreeFlags = NoFlags;
+  }
+  wip.type = current.type;
+  wip.child = current.child;
+  wip.updateQueue = current.updateQueue;
+  wip.memoizedProps = current.memoizedProps;
+  wip.memoizedState = current.memoizedState;
+  return wip;
+};
+
+export function createFiberFromElement(element: ReactElementType) {
+  const { type, key, props } = element;
+  let fiberTag: WorkTag = FunctionComponent;
+  if (typeof type === 'string') {
+    fiberTag = HostComponent;
+  } else if (typeof type !== 'function') {
+    console.log('error');
+  }
+  const fiber = new FiberNode(fiberTag, props, key);
+  fiber.type = type;
+  return fiber;
 }

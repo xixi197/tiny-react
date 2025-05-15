@@ -5,4 +5,4 @@ function App() {
 	return <div>hello</div>;
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(<div>hello</div>);
